@@ -1,6 +1,8 @@
 package com.scalakata
 package evaluation
 
+import java.nio.file.Path
+
 trait EvaluatorSetup {
   import scala.concurrent.duration._
   import java.nio.file.Paths
@@ -10,12 +12,25 @@ trait EvaluatorSetup {
     """|import com.scalakata._
        |@instrument class Playground {
        |  """.stripMargin
+
+  private val preludeNoInstr =
+    """|class Playground {
+       |  """.stripMargin
+
   private def wrap(code: String) = s"$prelude$code}"
+
+  private def wrapNoInstr(code: String) = s"$preludeNoInstr$code}"
+
   private def shiftRequest(pos: Int) = {
     val posO = pos + prelude.length
     RangePosition(posO, posO, posO)
   }
-
+  def evalUnwrapped(code: String) = {
+    evaluator(EvalRequest(code))
+  }
+  def evalNoInstr(code: String) = {
+    evaluator(EvalRequest(wrapNoInstr(code)))
+  }
   def eval(code: String) = {
     evaluator(EvalRequest(wrap(code)))
   }
@@ -33,8 +48,8 @@ trait EvaluatorSetup {
 
   private val scalacOptions = build.BuildInfo.scalacOptions.to[Seq]
   private def evaluator = new Evaluator(
-    artifacts,
-    scalacOptions,
+    Seq.empty[Path], //artifacts, // This is what causes the ss
+    scalacOptions, // Seq("-deprecation", "-unchecked", "-encoding", "utf8"),
     security = false,
     timeout = 30.seconds
   )

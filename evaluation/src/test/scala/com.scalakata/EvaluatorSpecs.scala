@@ -7,35 +7,70 @@ class EvaluatorSpecs extends Specification with EvaluatorSetup {
   def is = s2"""
     Evaluator Specifications
       The Scala Compiler
-        macro gracefully crash               $gracefulMacro
-        displays info/warning/errors         $reports
-        show type infered type at position   $typeInferance
+        macro gracefully crash                  $gracefulMacro
+        displays info/warning/errors            $reports
+        displays info/warning/errors unwrapped  $reportsFailuresUnwrapped
+        displays info/warning/errors uninstr    $reportsFailuresUninstr
+
+        displays no errors on success           $reportsSuccess
+        displays no errors on success unwrapped $reportsSuccessUnwrapped
+        displays no errors on success uninstr   $reportsSuccessUninstr
+
+        show type infered type at position      $typeInferance
         autocompletes
-          scope                              $autocompleteScope
-          member                             $autocompleteMembers
+          scope                                 $autocompleteScope
+          member                                $autocompleteMembers
 
       The Runtime Module
         classloader
           retreive Instrumented class
-            in any package                   $loasClassAnyPackage
-          allow working on multiple packages $multiPackage
-        runtime errors                       $runtimeErrors
-        paradise crash                       $paradiseCrash
+            in any package                      $loasClassAnyPackage
+          allow working on multiple packages    $multiPackage
+        runtime errors                          $runtimeErrors
+        paradise crash                          $paradiseCrash
 
       The Security Module
         via security manager
-          disallows stoping the jvm          $stopingJVM
-          disallow exhausting resources      $resourcesExhaustion
-          restrict reflection                $limitedReflection
-        disallows non termination            $timeout
+          disallows stoping the jvm             $stopingJVM
+          disallow exhausting resources         $resourcesExhaustion
+          restrict reflection                   $limitedReflection
+        disallows non termination               $timeout
   """
 
   def gracefulMacro = {
     eval("@instrument class A extends AnyVal").complilationInfos.contains(Error)
   }
 
+
+  def reportsSuccess = {
+    val result = eval("1 to 10").complilationInfos
+    result ==== Map()
+  }
+
+  def reportsSuccessUnwrapped = {
+    val result = evalUnwrapped("1 to 10").complilationInfos
+    result ==== Map()
+  }.pendingUntilFixed
+
+  def reportsFailuresUnwrapped = {
+    val result = evalUnwrapped("err").complilationInfos
+    result ==== Map(Error -> List(CompilationInfo("not found: value err", Some(RangePosition(56,56,56)) )))
+  }.pendingUntilFixed
+
+  def reportsSuccessUninstr = {
+    val result = evalNoInstr("1 to 10").complilationInfos
+    result ==== Map()
+  }
+
+  def reportsFailuresUninstr = {
+    val result = evalNoInstr("err").complilationInfos
+    result ==== Map(Error -> List(CompilationInfo("not found: value err", Some(RangePosition(21,21,24)) )))
+  }
+
+
   def reports = {
-    eval("err").complilationInfos ==== Map(Error -> List(CompilationInfo("not found: value err", Some(RangePosition(56,56,56)) )))
+    val result = eval("err").complilationInfos
+    result ==== Map(Error -> List(CompilationInfo("not found: value err", Some(RangePosition(56,56,56)) )))
   }
   def typeInferance = { 
     typeAt("List(1).reverse", 15).map(_.tpe) ==== Some("List[Int]")
